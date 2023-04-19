@@ -7,8 +7,6 @@ from tkinter import ttk
 from pynput import keyboard
 
 
-
-
 class KeyLogger:
 
     def __init__(self):
@@ -16,6 +14,7 @@ class KeyLogger:
         self.__press_thread = 0
         self.__release_thread = 0
         self.__stopped = False
+        self.__play_thread = 0
 
     def record_presses(self):
         print('record_presses()')
@@ -31,15 +30,8 @@ class KeyLogger:
             self.__key_log.append(['press', key, time.time()])
             return
 
-
-        # while True:
-        #     with keyboard.Listener(on_press=on_key_press) as press_listener:  # setting code for listening key-press
-        #         press_listener.join()
-        #     print('PRESS ITERATION DONE')
-        # while True:
         with keyboard.Listener(on_press=on_key_press) as press_listener:  # setting code for listening key-press
             press_listener.join()
-        # print('PRESS ITERATION DONE')
 
 
 
@@ -57,14 +49,8 @@ class KeyLogger:
             self.__key_log.append(['release', key, time.time()])
             return
 
-        # while True:
-        #     with keyboard.Listener(on_release=on_key_release) as release_listener:  # setting code for listening key-release
-        #         release_listener.join()
-        #     print('RELEASE ITERATION DONE')
-        # while True:
         with keyboard.Listener(on_release=on_key_release) as release_listener:  # setting code for listening key-release
             release_listener.join()
-        # print('RELEASE ITERATION DONE')
 
 
     def record_key_log(self):
@@ -77,50 +63,73 @@ class KeyLogger:
         self.__press_thread.start()
         self.__release_thread.start()
 
-        # def on_key_press(key):  # what to do on key-press
-        #     print('just got here')
-        #     self.__key_log.append(('press', time.time()))
-        #     print('about to leave')
-        #     return
-        #
-        # def on_key_release(key):  # what to do on key-release
-        #     # time_taken = round(time.time() - t, 2)  # rounding the long decimal float
-        #     # print("The key", key, " is pressed for", time_taken, 'seconds')
-        #     # return False  # stop detecting more key-releases
-        #     self.__key_log.append(('release', time.time()))
-        #     return
-        #
-        # while True:
-        #     print('before anything')
-        #     with keyboard.Listener(on_press=on_key_press) as press_listener:  # setting code for listening key-press
-        #         press_listener.join()
-        #     print('middle')
-        #     with keyboard.Listener(on_release=on_key_release) as release_listener:  # setting code for listening key-release
-        #         release_listener.join()
-        #     print('after')
-
     def stop_key_log(self):
         print('stop_key_log()')
         # self.__press_thread.join()
         # self.__release_thread.join()
         self.__stopped = True
 
+
+    def play_key_log_thread(self):
+        my_keyboard = keyboard.Controller()
+        # for index in range(1, len(self.__key_log)):
+        KEY_PRESS = 'press'
+        KEY_RELEASE = 'release'
+        for action in self.__key_log:
+            if len(action) == 2:
+                # this is a key press or release
+                if action[0] == KEY_PRESS:
+                    # this is a key press
+                    my_keyboard.press(action[1])
+                elif action[0] == KEY_RELEASE:
+                    # this is a key release
+                    my_keyboard.release(action[1])
+            else:
+                # this is a wait
+                time.sleep(action[0])
+
     def play_key_log(self):
         print('play_key_log()')
         print(self.__key_log)
-        my_keyboard = keyboard.Controller()
-        # for index in range(1, len(self.__key_log)):
-
+        self.__play_thread = threading.Thread(target=self.play_key_log_thread, args=())
+        self.__play_thread.start()
 
     def format_key_log(self):
         print('format_key_log()')
-        for index in range(1, len(self.__key_log)):
-            # print(index)
-            self.__key_log[index][2] = self.__key_log[index][2]-self.__key_log[0][1]
+        # for index in range(1, len(self.__key_log)):
+        #     # print(index)
+        #     self.__key_log[index][2] = self.__key_log[index][2]-self.__key_log[0][1]
         # print(self.__key_log)
-        for index in range(1, len(self.__key_log)):
-            self.__key_log[index][2] = self.__key_log[index][2]-self.__key_log[1][2]
+        # for index in range(1, len(self.__key_log)):
+        #     self.__key_log[index][2] = self.__key_log[index][2]-self.__key_log[1][2]
 
+        new_key_log = []
+        for index in range(1, len(self.__key_log)):
+            if index == 1:
+                new_key_log.append([self.__key_log[index][0], self.__key_log[index][1]])
+            else:
+                new_key_log.append([self.__key_log[index][2] - self.__key_log[index-1][2]])
+                new_key_log.append([self.__key_log[index][0], self.__key_log[index][1]])
+        # print(new_key_log)
+        self.__key_log = new_key_log
+        # new_key_log = []
+        # secs_since = 0
+        # for index in range(1, len(self.__key_log)):
+        #     if index==1:
+        #         new_key_log.append([self.__key_log[index][0], self.__key_log[index][1]])
+        #         secs_since = self.__key_log[index][2]
+        #     else:
+        #         # append seconds delay since
+        #         # new_key_log.append([self.__key_log[index][2]])
+        #         # new_key_log.append([self.__key_log[index][2] - secs_since])
+        #         new_key_log.append([secs_since])
+        #
+        #         # update seconds_since last move
+        #         secs_since = self.__key_log[index][2] - secs_since
+        #
+        #         # append next move
+        #         new_key_log.append([self.__key_log[index][0], self.__key_log[index][1]])
+        # print(new_key_log)
 
 def main():
     key_logger = KeyLogger()
@@ -135,6 +144,8 @@ def main():
 
     ttk.Button(frm, text='Format', command=key_logger.format_key_log).grid(row=0, column=3)
 
+    ttk.Label(frm, text='abc').grid(row=1, column=0)
+    ttk.Entry(frm).grid(row=1, column=1)
     root.mainloop()
 
 
