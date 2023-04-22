@@ -58,6 +58,33 @@ and maintained within the PythonVirtualEnvironment and how and when pynput was
 actually listening for keyboard interactions.
 
 6. What features would you add next?
+I would add hotkeys to for every button for two reasons:
+- Make it completely accessible while minimized.
+- Eliminate the need for the start-delay.
+I want to touch base on the original proposal, when I was writing the proposal
+I thought it would be extremely simple to detect keypresses (hotkeys like
+Shift+Esc) and to bind them to buttons. This turned out to not be true since
+when binding keys to buttons as shown in class through Tkinter, those keys are
+only detected while the tkinter window is active, the primary application
+viewed on your system. Now with pynput I was able to work around this
+limitation for detecting key-presses and key-releases *when recording the
+macros, not for activating the buttons*. I could work around this but the
+added complexity would be quite huge since I would have to constantly have to
+manage the communication of 4+ threads (tkinter-thread, press-thread,
+release-thread, button-thread). Given more time, I will likely do this over
+the Summer.
+Another feature I would add is letting the user save and replay previously
+recorded macros onto/from their device. This was also outlined in my proposal
+but wrapping my head around the multithreading that this version already
+requires took alot more time than I thought.
+Lastly another feature I would add would be post-macro-editor where the user
+could view and edit a recorded macro before playing it. I think this could be
+implemented with a Tkinter 'listbox'. It would show all of the key presses,
+key releases and delays between those actions. The user could then edit or
+remove any of those items before playing the macro.
+
+This was a fun project that really allowed me to stretch my knowledge in
+various topics. I think I bit off more than I could chew in my proposal:P
 
 """
 
@@ -85,65 +112,70 @@ def main():
             print('record_presses()')
 
             def on_key_press(key):
-                # self.__key_log.append(['press', key, time.time()])
-                # if self.__stopped == True:
-                #     return False
-                # else:
-                #     return
-                if self.__stopped == True:
+                if self.__stopped:
                     return False
                 self.__key_log.append(['press', key, time.time()])
                 return
 
-            with keyboard.Listener(on_press=on_key_press) as press_listener:  # setting code for listening key-press
+            # setting code for listening key-press
+            with keyboard.Listener(on_press=on_key_press) as press_listener:
                 press_listener.join()
 
         def record_releases(self):
             print('record_releases()')
 
             def on_key_release(key):
-                # self.__key_log.append(['release', key, time.time()])
-                # if self.__stopped == True:
-                #     return False
-                # else:
-                #     return
-                if self.__stopped == True:
+                if self.__stopped:
                     return False
                 self.__key_log.append(['release', key, time.time()])
                 return
 
-            with keyboard.Listener(
-                    on_release=on_key_release) as release_listener:  # setting code for listening key-release
+            # setting code for listening key-release
+            with keyboard.Listener(on_release=on_key_release) as \
+                    release_listener:
                 release_listener.join()
 
         def record_key_log(self, event=None):
             print('record_key_log()')
+
+            # update stopped so the press and release threads don't
+            # immediately close
             self.__stopped = False
+
+            # clear the key_log
             self.__key_log = []
+
+            # add the start time for formatting later
             self.__key_log.append(['start', time.time()])
-            self.__press_thread = threading.Thread(target=self.record_presses, args=())
-            self.__release_thread = threading.Thread(target=self.record_releases, args=())
+            self.__press_thread = \
+                threading.Thread(target=self.record_presses, args=())
+            self.__release_thread = \
+                threading.Thread(target=self.record_releases, args=())
             self.__press_thread.start()
             self.__release_thread.start()
-            # enable the stop button and disable the record button
+
+            # enable the stop button and disable the record and play buttons
             record_button.config(state='disabled')
             stop_button.config(state='normal')
             play_button.config(state='disabled')
 
         def stop_key_log(self):
             print('stop_key_log()')
-            # update stopped so the press and release threads will stop taking input and close
+
+            # update stopped so the press and release threads will stop
+            # taking input and close
             self.__stopped = True
+
             # format the key_log to a more usable format
             self.format_key_log()
-            # enable the record button and disable the stop button
+
+            # enable the record and play buttons and disable the stop button
             record_button.config(state='normal')
             stop_button.config(state='disabled')
             play_button.config(state='normal')
 
         def play_key_log_thread(self):
             my_keyboard = keyboard.Controller()
-            # for index in range(1, len(self.__key_log)):
             KEY_PRESS = 'press'
             KEY_RELEASE = 'release'
             for action in self.__key_log:
@@ -165,21 +197,34 @@ def main():
         def play_key_log(self, event=None):
             print('play_key_log()')
             print(self.__key_log)
-            self.__play_thread = threading.Thread(target=self.play_key_log_thread, args=())
+
+            # play out the macro in a different thread so that the window
+            # stays responsive
+            self.__play_thread =\
+                threading.Thread(target=self.play_key_log_thread, args=())
             self.__play_thread.start()
 
         def format_key_log(self):
             print('format_key_log()')
 
             new_key_log = []
+
+            # add the start-delay time
             new_key_log.append([float(wait_times[wait_combo_box.current()])])
+
+            # compute the difference between the actions and reformat the list
+            # into new_key_log
             for index in range(1, len(self.__key_log)):
                 if index == 1:
-                    new_key_log.append([self.__key_log[index][0], self.__key_log[index][1]])
+                    new_key_log.append([self.__key_log[index][0],
+                                        self.__key_log[index][1]])
                 else:
-                    new_key_log.append([self.__key_log[index][2] - self.__key_log[index - 1][2]])
-                    new_key_log.append([self.__key_log[index][0], self.__key_log[index][1]])
-            # print(new_key_log)
+                    new_key_log.append([self.__key_log[index][2] -
+                                        self.__key_log[index - 1][2]])
+                    new_key_log.append([self.__key_log[index][0],
+                                        self.__key_log[index][1]])
+
+            # have the old key_log point to the new_key_log
             self.__key_log = new_key_log
 
     key_logger = KeyLogger()
@@ -188,30 +233,42 @@ def main():
 
     instr_frm = ttk.LabelFrame(root, text='Instructions', padding=5)
     instr_frm.grid(row=0, column=0, sticky='N')
-    ttk.Label(instr_frm, text='Press Record to begin recording a macro.').grid(row=0, column=0, sticky='W')
-    ttk.Label(instr_frm, text='Press Stop to the recording.').grid(row=1, column=0, sticky='W')
-    ttk.Label(instr_frm, text='Press Play to playback the macro.').grid(row=2, column=0, sticky='W')
-    ttk.Label(instr_frm, text='Set the start delay (seconds) to\nadjust how late the macro starts after playing.').grid(row=3, column=0, sticky='W')
-    # ttk.Label(instr_frm, text='').grid(row=, column=0, sticky='W')
-    # ttk.Label(instr_frm, text='').grid(row=, column=0, sticky='W')
+    ttk.Label(instr_frm, text='Press Record to begin recording a macro.')\
+        .grid(row=0, column=0, sticky='W')
+    ttk.Label(instr_frm, text='Press Stop to the recording.')\
+        .grid(row=1, column=0, sticky='W')
+    ttk.Label(instr_frm, text='Press Play to playback the macro.')\
+        .grid(row=2, column=0, sticky='W')
+    ttk.Label(instr_frm, text='Set the start delay (seconds) to\n'
+                              'adjust how late the macro starts after playing.')\
+        .grid(row=3, column=0, sticky='W')
+    ttk.Label(instr_frm, text='Tip: The program only tracks keyboard\n'
+                              'actions so use mouse input to move\n'
+                              'between windows.') \
+        .grid(row=4, column=0, sticky='W')
 
 
     button_frm = ttk.LabelFrame(root, text='Actions', padding=5)
     button_frm.grid(row=1, column=0, sticky='N')
 
-    record_button = ttk.Button(button_frm, text='Record', command=key_logger.record_key_log)
+    record_button = ttk.Button(button_frm, text='Record',
+                               command=key_logger.record_key_log)
     record_button.grid(row=0, column=0)
-    stop_button = ttk.Button(button_frm, text='Stop', command=key_logger.stop_key_log, state='disabled')
+    stop_button = ttk.Button(button_frm, text='Stop',
+                             command=key_logger.stop_key_log, state='disabled')
     stop_button.grid(row=0, column=1)
-    play_button = ttk.Button(button_frm, text='Play', command=key_logger.play_key_log, state='disabled')
+    play_button = ttk.Button(button_frm, text='Play',
+                             command=key_logger.play_key_log, state='disabled')
     play_button.grid(row=0, column=2)
 
     wait_frm = ttk.LabelFrame(root, text='Start Delay', padding=5)
     wait_frm.grid(row=0, column=1, sticky='N')
     wait_str = tkinter.StringVar()
-    wait_combo_box = ttk.Combobox(wait_frm, width=10, textvariable=wait_str, state='readonly')
+    wait_combo_box = ttk.Combobox(wait_frm, width=10, textvariable=wait_str,
+                                  state='readonly')
     wait_combo_box.grid(row=0, column=0)
-    wait_times = ('0.5', '1.0', '1.5', '2.0', '2.5', '3.0', '3.5', '4.0', '4.5', '5.0')
+    wait_times = ('0.5', '1.0', '1.5', '2.0', '2.5',
+                  '3.0', '3.5', '4.0', '4.5', '5.0')
     wait_combo_box['values'] = wait_times
     wait_combo_box.current(4)
 
