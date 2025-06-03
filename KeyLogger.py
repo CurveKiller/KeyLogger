@@ -178,21 +178,50 @@ def main():
             my_keyboard = keyboard.Controller()
             KEY_PRESS = 'press'
             KEY_RELEASE = 'release'
-            for action in self.__key_log:
-                if len(action) == 2:
-                    # this is a key press or release
-                    if action[0] == KEY_PRESS:
-                        # this is a key press
-                        print(f'press = {action[1]}')
-                        my_keyboard.press(action[1])
-                    elif action[0] == KEY_RELEASE:
-                        # this is a key release
-                        print(f'release = {action[1]}')
-                        my_keyboard.release(action[1])
-                else:
-                    # this is a wait
-                    print(f'wait = {action[0]}')
-                    time.sleep(action[0])
+            # print(f'fdsa{repeat_str.get()}')
+            if repeat_bool.get():
+                for repeat_index in range(0, int(repeat_str.get())):
+                    for action_index in range(len(self.__key_log)):
+                        action = self.__key_log[action_index]
+                        if len(action) == 2:
+                            # this is a key press or release
+                            if action[0] == KEY_PRESS:
+                                # this is a key press
+                                print(f'press = {action[1]}')
+                                my_keyboard.press(action[1])
+                            elif action[0] == KEY_RELEASE:
+                                # this is a key release
+                                print(f'release = {action[1]}')
+                                my_keyboard.release(action[1])
+                        else:
+                            # this is a wait
+                            if(action_index!=0 and fast_playback_bool.get()):
+                                print(f'wait = {fast_playback_times[fast_playback_combo_box.current()]}')
+                                time.sleep(float(fast_playback_times[fast_playback_combo_box.current()]))
+                            else:
+                                print(f'wait = {action[0]}')
+                                time.sleep(action[0])
+            else:
+                for action_index in range(len(self.__key_log)):
+                    action = self.__key_log[action_index]
+                    if len(action) == 2:
+                        # this is a key press or release
+                        if action[0] == KEY_PRESS:
+                            # this is a key press
+                            print(f'press = {action[1]}')
+                            my_keyboard.press(action[1])
+                        elif action[0] == KEY_RELEASE:
+                            # this is a key release
+                            print(f'release = {action[1]}')
+                            my_keyboard.release(action[1])
+                    else:
+                        # this is a wait
+                        if(action_index!=0 and fast_playback_bool.get()):
+                            print(f'wait = {fast_playback_times[fast_playback_combo_box.current()]}')
+                            time.sleep(float(fast_playback_times[fast_playback_combo_box.current()]))
+                        else:
+                            print(f'wait = {action[0]}')
+                            time.sleep(action[0])
 
         def play_key_log(self, event=None):
             print('play_key_log()')
@@ -261,16 +290,66 @@ def main():
                              command=key_logger.play_key_log, state='disabled')
     play_button.grid(row=0, column=2)
 
-    wait_frm = ttk.LabelFrame(root, text='Start Delay', padding=5)
-    wait_frm.grid(row=0, column=1, sticky='N')
+    play_settings_frm = ttk.LabelFrame(root, text='Play Settings', padding=5)
+    play_settings_frm.grid(row=0, column=1, sticky='N')
+
+
+    wait_label = ttk.Label(play_settings_frm, text='      Start Delay')
+    wait_label.grid(row=0, column=0, sticky='W')
+
     wait_str = tkinter.StringVar()
-    wait_combo_box = ttk.Combobox(wait_frm, width=10, textvariable=wait_str,
-                                  state='readonly')
-    wait_combo_box.grid(row=0, column=0)
-    wait_times = ('0.5', '1.0', '1.5', '2.0', '2.5',
-                  '3.0', '3.5', '4.0', '4.5', '5.0')
+    wait_combo_box = ttk.Combobox(play_settings_frm, width=10, textvariable=wait_str, state='readonly')
+    wait_combo_box.grid(row=0, column=1)
+    wait_times = ('0.5', '1.0', '1.5', '2.0', '2.5', '3.0', '3.5', '4.0', '4.5', '5.0')
     wait_combo_box['values'] = wait_times
     wait_combo_box.current(4)
+
+    fast_playback_bool = tkinter.BooleanVar()
+    fast_playback_checkbox = ttk.Checkbutton(play_settings_frm, text='Fast Playback', variable=fast_playback_bool)
+    fast_playback_checkbox.grid(row=1, column=0, sticky='W')
+
+
+    repeat_bool = tkinter.BooleanVar(value=False)
+
+    repeat_checkbox = ttk.Checkbutton(play_settings_frm, text='Repeat', variable=repeat_bool)
+    repeat_checkbox.grid(row=2, column=0, sticky='W')
+
+    def _validate(P):
+        print(f'validate = {P}')
+        return P.isdigit()
+
+    digit_validation = root.register(_validate)
+    repeat_str = tkinter.IntVar()
+    repeat_spin_box = ttk.Spinbox(play_settings_frm, width=10, textvariable=repeat_str, from_=0, to=300, state='disabled')
+    repeat_spin_box.config(validate='key', validatecommand=(digit_validation, '%P'))
+    repeat_spin_box.grid(row=2, column=1)
+
+    def update_repeat_state(*args):
+        if repeat_bool.get():
+            repeat_spin_box.config(state='normal')
+            repeat_checkbox.config(text='Repeat        #:')
+        else:
+            repeat_spin_box.config(state='disabled')
+            repeat_checkbox.config(text='Repeat')
+
+    repeat_bool.trace('w', update_repeat_state)
+
+    fast_playback_str = tkinter.StringVar()
+    fast_playback_combo_box = ttk.Combobox(play_settings_frm, width=10, textvariable=fast_playback_str,
+                                           state='disabled')
+    fast_playback_combo_box.grid(row=1, column=1)
+    fast_playback_times = ('0.0', '0.03', '0.06', '0.09', '0.12', '0.15', '0.18', '0.21', '0.24', '0.27', '0.3', '0.33',
+                           '0.36', '0.39', '0.42', '0.45', '0.48')
+    fast_playback_combo_box['values'] = fast_playback_times
+    fast_playback_combo_box.current(3)
+
+    def update_fast_playback_state(*args):
+        if fast_playback_bool.get():
+            fast_playback_combo_box.config(state='readonly')
+        else:
+            fast_playback_combo_box.config(state='disabled')
+
+    fast_playback_bool.trace('w', update_fast_playback_state)
 
     root.resizable(False, False)
     root.mainloop()
